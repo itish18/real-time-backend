@@ -1,0 +1,25 @@
+<head></head>
+<body>
+  <input type="text" id="message" />
+  <button id="send-message" onclick="sendmessage()">send message</button>
+  <ul id="message-box"></ul>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:8080", "echo-protocol");
+    ws.onopen = function (event) {};
+
+    ws.onmessage = function (event) {
+      console.log(event.data);
+      const messageBox = document.getElementById("message-box");
+      const listItem = document.createElement("li");
+      listItem.textContent = event.data;
+      messageBox.appendChild(listItem);
+    };
+
+    function sendmessage() {
+      const message = document.getElementById("message").value;
+
+      ws.send(`${message}`);
+    }
+  </script>
+</body>
