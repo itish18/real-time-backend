@@ -1,7 +1,7 @@
 var WebSocketServer = require("websocket").server;
 var http = require("http");
 
-var messages = [];
+let room = new Map();
 
 var server = http.createServer(function (request, response) {
   console.log(new Date() + " Received request for " + request.url);
@@ -14,11 +14,6 @@ server.listen(8080, function () {
 
 let wsServer = new WebSocketServer({
   httpServer: server,
-  // You should not use autoAcceptConnections for production
-  // applications, as it defeats all standard cross-origin protection
-  // facilities built into the protocol and the browser.  You should
-  // *always* verify the connection's origin and decide whether or not
-  // to accept it.
   autoAcceptConnections: false,
 });
 
@@ -39,20 +34,32 @@ wsServer.on("request", function (request) {
 
   var connection = request.accept("echo-protocol", request.origin);
 
-  connection.on("message", function (message) {
-    if (message.type === "utf8") {
-      messages.push(message.utf8Data);
-      wsServer.broadcast(message.utf8Data);
-      //   connection.send(messages);
+  connection.on("message", function (data) {
+    if (data.type === "utf8") {
+      const { utf8Data: response } = data;
+      const res = JSON.parse(response);
+
+      if (res.type === "register") {
+        room.set(res.id, connection);
+      }
+
+      if (res.type === "message") {
+        const receiver = room.get(res.receiverId);
+        if (receiver) {
+          receiver.send(
+            JSON.stringify({
+              content: res.content,
+              sender: res.sender,
+            })
+          );
+        } else {
+          console.log(`User ${res.receiverId} not found`);
+        }
+      }
     }
-    // else if (message.type === "binary") {
-    //   console.log(
-    //     "Received Binary Message of " + message.binaryData.length + " bytes"
-    //   );
-    //   connection.sendBytes(message.binaryData);
-    // }
   });
   connection.on("close", function (reasonCode, description) {
+    room.clear();
     console.log(
       new Date() + " Peer " + connection.remoteAddress + " disconnected."
     );

@@ -1,25 +1,56 @@
 <head></head>
 <body>
-  <input type="text" id="message" />
-  <button id="send-message" onclick="sendmessage()">send message</button>
+  <div>
+    <input type="text" id="username" />
+    <button onclick="register()" id="register">Register</button>
+  </div>
+  <div>
+    <input type="text" id="sendTo" />
+    <input type="text" id="message" />
+    <button id="send-message" onclick="sendmessage()">send message</button>
+  </div>
+
   <ul id="message-box"></ul>
+
+  <video id="my-video" autoplay playsinline >
 
   <script>
     const ws = new WebSocket("ws://localhost:8080", "echo-protocol");
-    ws.onopen = function (event) {};
+    let video;
+    window.navigator.mediaDevices.getUserMedia({
+      video:true,audio:true
+    }).then(data=>{
+      video=data.getVideoTracks()[0]
+      const videoRef = document.getElementById('my-video')
+      videoRef.srcObject = new MediaStream([video])
+    })
+
+    
+    function register() {
+      const username = document.getElementById("username").value;
+
+      ws.send(JSON.stringify({ type: "register", id: username, ws }));
+    }
 
     ws.onmessage = function (event) {
-      console.log(event.data);
       const messageBox = document.getElementById("message-box");
       const listItem = document.createElement("li");
-      listItem.textContent = event.data;
+      console.log(event.data);
+      listItem.textContent = JSON.parse(event.data).content;
       messageBox.appendChild(listItem);
     };
 
     function sendmessage() {
       const message = document.getElementById("message").value;
 
-      ws.send(`${message}`);
+      ws.send(
+        JSON.stringify({
+          type: "message",
+          sender: document.getElementById("username").value,
+          receiverId: document.getElementById("sendTo").value,
+          content: message,
+        })
+      );
     }
   </script>
 </body>
