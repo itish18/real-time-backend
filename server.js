@@ -35,27 +35,19 @@ wsServer.on("request", function (request) {
   var connection = request.accept("echo-protocol", request.origin);
 
   connection.on("message", function (data) {
-    if (data.type === "utf8") {
-      const { utf8Data: response } = data;
-      const res = JSON.parse(response);
+    try {
+      if (data.type === "utf8") {
+        const message = JSON.parse(data.utf8Data);
 
-      if (res.type === "register") {
-        room.set(res.id, connection);
+        wsServer.connections.forEach((client) => {
+          if (client !== connection) {
+            console.log(client.webSocketVersion);
+            client.sendUTF(JSON.stringify(message));
+          }
+        });
       }
-
-      if (res.type === "message") {
-        const receiver = room.get(res.receiverId);
-        if (receiver) {
-          receiver.send(
-            JSON.stringify({
-              content: res.content,
-              sender: res.sender,
-            })
-          );
-        } else {
-          console.log(`User ${res.receiverId} not found`);
-        }
-      }
+    } catch (e) {
+      console.log("Error handling message:", e);
     }
   });
   connection.on("close", function (reasonCode, description) {

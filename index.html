@@ -1,56 +1,76 @@
 <head></head>
 <body>
-  <div>
+  <!-- <div>
     <input type="text" id="username" />
     <button onclick="register()" id="register">Register</button>
-  </div>
+  </div> -->
   <div>
-    <input type="text" id="sendTo" />
-    <input type="text" id="message" />
-    <button id="send-message" onclick="sendmessage()">send message</button>
+    <!-- <input type="text" id="sendTo" /> -->
+    <!-- <input type="text" id="message" /> -->
+    <button id="send-message">send call</button>
   </div>
 
-  <ul id="message-box"></ul>
-
-  <video id="my-video" autoplay playsinline >
+  <video id="my-video" autoplay playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
 
   <script>
-    const ws = new WebSocket("ws://localhost:8080", "echo-protocol");
+    const ws = new WebSocket("ws://192.168.194.143:8080", "echo-protocol");
+    const pc = new RTCPeerConnection();
+
     let video;
-    window.navigator.mediaDevices.getUserMedia({
-      video:true,audio:true
-    }).then(data=>{
-      video=data.getVideoTracks()[0]
-      const videoRef = document.getElementById('my-video')
-      videoRef.srcObject = new MediaStream([video])
-    })
+    let remoteVideoRef = document.getElementById("remoteVideo");
+    window.navigator.mediaDevices
+      .getUserMedia({
+        video: true,
+        audio: true,
+      })
+      .then((data) => {
+        video = data.getVideoTracks()[0];
+        const videoRef = document.getElementById("my-video");
+        videoRef.srcObject = new MediaStream([video]);
 
-    
-    function register() {
-      const username = document.getElementById("username").value;
+        data.getTracks().forEach((track) => pc.addTrack(track, data));
+      });
 
-      ws.send(JSON.stringify({ type: "register", id: username, ws }));
-    }
-
-    ws.onmessage = function (event) {
-      const messageBox = document.getElementById("message-box");
-      const listItem = document.createElement("li");
-      console.log(event.data);
-      listItem.textContent = JSON.parse(event.data).content;
-      messageBox.appendChild(listItem);
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        ws.send(
+          JSON.stringify({
+            type: "candidate",
+            candidate: e.candidate,
+            socket: ws,
+          })
+        );
+      }
     };
 
-    function sendmessage() {
-      const message = document.getElementById("message").value;
+    console.log("from phone");
 
-      ws.send(
-        JSON.stringify({
-          type: "message",
-          sender: document.getElementById("username").value,
-          receiverId: document.getElementById("sendTo").value,
-          content: message,
-        })
-      );
-    }
+    pc.ontrack = (e) => {
+      remoteVideoRef.srcObject = e.streams[0];
+    };
+
+    ws.onmessage = async (message) => {
+      const data = JSON.parse(message.data);
+
+      if (data.type === "offer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({ type: "answer", sdp: answer }));
+      } else if (data.type === "answer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      } else if (data.type === "candidate") {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    };
+
+    const sendOffer = async () => {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify({ type: "offer", sdp: offer, socket: ws }));
+    };
+    const sendNode = document.getElementById("send-message");
+    sendNode.addEventListener("click", sendOffer);
   </script>
 </body>
