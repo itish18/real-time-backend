@@ -34,7 +34,12 @@ function App() {
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
-        ws.send(JSON.stringify({ type: "candidate", candidate: e.candidate }));
+        ws.send(
+          JSON.stringify({
+            roomId: "12",
+            data: { type: "candidate", candidate: e.candidate },
+          })
+        );
       }
     };
 
@@ -44,36 +49,43 @@ function App() {
 
     ws.onmessage = async (message) => {
       const data = JSON.parse(message.data);
-
+      console.log(data);
       if (data.type === "offer") {
-        if (pc.signalingState !== "stable") {
-          console.log("Peer connection is not stable, cannot handle offer");
-          return;
-        }
+        console.log(pc.signalingState);
+        // if (pc.signalingState !== "stable") {
+        //   console.log("Peer connection is not stable, cannot handle offer");
+        //   return;
+        // }
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        ws.send(JSON.stringify({ type: "answer", sdp: answer }));
+        ws.send(
+          JSON.stringify({
+            roomId: "12",
+            data: { type: "answer", sdp: answer },
+          })
+        );
       } else if (data.type === "answer") {
-        if (pc.signalingState !== "have-local-offer") {
-          console.log(
-            "Peer connection is not in the correct state to handle answer"
-          );
-          return;
-        }
+        // if (pc.signalingState !== "have-local-offer") {
+        //   console.log(
+        //     "Peer connection is not in the correct state to handle answer"
+        //   );
+        //   return;
+        // }
+        console.log(data.sdp);
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
       } else if (data.type === "candidate") {
-        if (
-          pc.signalingState === "stable" ||
-          pc.signalingState === "have-local-offer" ||
-          pc.signalingState === "have-remote-offer"
-        ) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } else {
-          console.log(
-            "Peer connection is not in the correct state to handle candidate"
-          );
-        }
+        // if (
+        //   pc.signalingState === "stable" ||
+        //   pc.signalingState === "have-local-offer" ||
+        //   pc.signalingState === "have-remote-offer"
+        // ) {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        // } else {
+        //   console.log(
+        //     "Peer connection is not in the correct state to handle candidate"
+        //   );
+        // }
       }
     };
 
@@ -91,12 +103,18 @@ function App() {
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    ws.send(JSON.stringify({ type: "offer", sdp: offer, socket: ws }));
+
+    ws.send(
+      JSON.stringify({
+        roomId: "12",
+        data: { type: "offer", sdp: offer },
+      })
+    );
   };
 
   return (
     <div>
-      <button onClick={sendOffer}>send call</button>
+      <button onClick={sendOffer}>Join room</button>
       <video ref={localVideoRef} autoPlay playsInline></video>
       <video ref={remoteVideoRef} autoPlay playsInline></video>
     </div>

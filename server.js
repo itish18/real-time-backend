@@ -1,7 +1,10 @@
-var WebSocketServer = require("websocket").server;
-var http = require("http");
-
-let room = new Map();
+// var WebSocketServer = require("websocket").server;
+// var http = require("http");
+// const { UserManager } = require("./manager/UserManager");
+import http from "http";
+import WebSocketServer from "websocket";
+import { UserManager } from "./manager/UserManager.js";
+import { RoomManager } from "./manager/RoomManager.js";
 
 var server = http.createServer(function (request, response) {
   console.log(new Date() + " Received request for " + request.url);
@@ -12,7 +15,7 @@ server.listen(8080, function () {
   console.log(new Date() + " Server is listening on port 8080");
 });
 
-let wsServer = new WebSocketServer({
+let wsServer = new WebSocketServer.server({
   httpServer: server,
   autoAcceptConnections: false,
 });
@@ -21,6 +24,9 @@ function originIsAllowed(origin) {
   // put logic here to detect whether the specified origin is allowed.
   return true;
 }
+
+// const userManager = new UserManager();
+const roomManager = new RoomManager();
 
 wsServer.on("request", function (request) {
   //   if (!originIsAllowed(request.origin)) {
@@ -39,21 +45,23 @@ wsServer.on("request", function (request) {
       if (data.type === "utf8") {
         const message = JSON.parse(data.utf8Data);
 
-        wsServer.connections.forEach((client) => {
-          if (client !== connection) {
-            console.log(client.webSocketVersion);
-            client.sendUTF(JSON.stringify(message));
-          }
+        roomManager.createRoom({
+          roomId: message.roomId,
+          socket: connection,
+          data: message.data,
         });
+
+        // wsServer.connections.forEach((client) => {
+        //   if (client !== connection) {
+        //     client.sendUTF(JSON.stringify(message));
+        //   }
+        // });
       }
     } catch (e) {
       console.log("Error handling message:", e);
     }
   });
   connection.on("close", function (reasonCode, description) {
-    room.clear();
-    console.log(
-      new Date() + " Peer " + connection.remoteAddress + " disconnected."
-    );
+    // room.clear();
   });
 });
