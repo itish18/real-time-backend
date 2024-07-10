@@ -44,8 +44,14 @@ export class RoomManager {
           candidate: data.candidate,
           type: data.person,
         });
-
         break;
+      case "toggle-camera":
+        console.log("toggle-camera");
+        this.toggleCamera({
+          roomId,
+          socket,
+          cameraOn: data.cameraOn,
+        });
       default:
         console.log("Unknown data type:", data.type);
     }
@@ -72,6 +78,15 @@ export class RoomManager {
       roomId,
       senderSocket,
       message: { type: "candidate", candidate },
+    });
+  }
+
+  toggleCamera({ roomId, socket: senderSocket, cameraOn }) {
+    console.log("toggle");
+    this.sendToOtherUserInRoom({
+      roomId,
+      senderSocket,
+      message: { type: "toggle-camera", cameraOn },
     });
   }
 
