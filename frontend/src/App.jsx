@@ -5,50 +5,36 @@ function App() {
   const remoteVideoRef = useRef(null);
   const [ws, setWs] = useState(null);
   const [pc, setPc] = useState(null);
-  const [room, setRoom] = useState("");
+  const [room, setRoom] = useState("r");
 
   const [local, setLocal] = useState(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8080", "echo-protocol");
+    const ws = new WebSocket(
+      "https://168xk449-8080.inc1.devtunnels.ms/",
+      "echo-protocol"
+    );
     setWs(ws);
 
     const pc = new RTCPeerConnection();
     setPc(pc);
 
-    window.navigator.permissions
-      .query({ name: "camera" })
-      .then((obj) => {
-        if (obj.state === "granted") {
-          window.navigator.mediaDevices
-            .getUserMedia({
-              video: true,
-              audio: true,
-            })
-            .then((data) => {
-              let localVideo = data.getVideoTracks()[0];
-              setLocal(data);
-              localVideoRef.current.srcObject = new MediaStream([localVideo]);
-
-              data.getTracks().forEach((track) => pc.addTrack(track, data));
-            });
-        }
+    window.navigator.mediaDevices
+      .getUserMedia({
+        video: true,
+        audio: true,
       })
-      .catch((e) => console.log(e));
+      .then((data) => {
+        let localVideo = data.getVideoTracks()[0];
+        setLocal(data);
+        localVideoRef.current.srcObject = new MediaStream([localVideo]);
+
+        data.getTracks().forEach((track) => pc.addTrack(track, data));
+      });
 
     pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        ws.send(
-          JSON.stringify({
-            roomId: room.toString(),
-            data: { type: "candidate", candidate: e.candidate },
-          })
-        );
-      }
-    };
-
-    pc.onnegotiationneeded = async (e) => {
       if (e.candidate && room) {
+        console.log(room);
         ws.send(
           JSON.stringify({
             roomId: room.toString(),
@@ -66,9 +52,12 @@ function App() {
     ws.onmessage = async (message) => {
       const data = JSON.parse(message.data);
       if (data.type === "offer") {
+        console.log("here");
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         const answer = await pc.createAnswer();
+        console.log(answer);
         await pc.setLocalDescription(answer);
+        console.log(answer);
         ws.send(
           JSON.stringify({
             roomId: room.toString(),
@@ -83,6 +72,11 @@ function App() {
         handleToggleCamera(data);
       }
     };
+
+    // return () => {
+    //   ws.close();
+    //   pc.close();
+    // };
   }, []);
 
   const sendOffer = async () => {

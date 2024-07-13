@@ -44,6 +44,7 @@ wsServer.on("request", function (request) {
     try {
       if (data.type === "utf8") {
         const message = JSON.parse(data.utf8Data);
+        connection.roomId = message.roomId;
 
         roomManager.createRoom({
           roomId: message.roomId,
@@ -61,7 +62,12 @@ wsServer.on("request", function (request) {
       console.log("Error handling message:", e);
     }
   });
-  connection.on("close", function (reasonCode, description) {
-    // room.clear();
+  connection.on("close", function (message) {
+    if (connection.roomId) {
+      roomManager.removeUserFromRoom({
+        roomId: connection.roomId,
+        socket: connection,
+      });
+    }
   });
 });

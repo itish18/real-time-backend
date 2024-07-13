@@ -13,13 +13,6 @@ export class RoomManager {
       this.rooms.set(roomId.toString(), room);
       this.initHandlers({ socket, roomId, data });
     }
-    // if (!room) {
-    //   this.rooms.set(roomId.toString(), { sockets: [socket] });
-    // } else {
-    //   room.sockets.push(socket);
-    //   this.rooms.set(roomId.toString(), room);
-    //   this.initHandlers({ socket, roomId, data });
-    // }
   }
 
   getRoom(roomId) {
@@ -29,15 +22,12 @@ export class RoomManager {
   initHandlers({ socket, roomId, data }) {
     switch (data.type) {
       case "offer":
-        console.log("offer");
         this.onOffer({ roomId, socket, sdp: data.sdp });
         break;
       case "answer":
-        console.log("answer");
         this.onAnswer({ roomId, socket, sdp: data.sdp });
         break;
       case "candidate":
-        console.log("cand");
         this.onIceCandidate({
           roomId,
           socket,
@@ -46,12 +36,14 @@ export class RoomManager {
         });
         break;
       case "toggle-camera":
-        console.log("toggle-camera");
         this.toggleCamera({
           roomId,
           socket,
           cameraOn: data.cameraOn,
         });
+      case "closed":
+        this.removeUserFromRoom({ roomId, socket });
+        break;
       default:
         console.log("Unknown data type:", data.type);
     }
@@ -82,7 +74,6 @@ export class RoomManager {
   }
 
   toggleCamera({ roomId, socket: senderSocket, cameraOn }) {
-    console.log("toggle");
     this.sendToOtherUserInRoom({
       roomId,
       senderSocket,
@@ -90,22 +81,37 @@ export class RoomManager {
     });
   }
 
-  sendToOtherUserInRoom({ roomId, senderSocket, message }) {
+  removeUserFromRoom({ roomId, socket: senderSocket }) {
     const room = this.rooms.get(roomId.toString());
 
     if (!room) {
       console.log("room not found");
       return;
     }
+    const users = room.sockets.filter((socket) => socket !== senderSocket);
 
-    const receivingUser = room.sockets.find(
-      (socket) => socket !== senderSocket
-    );
-
-    if (receivingUser) {
-      receivingUser.send(JSON.stringify(message));
+    if (users.length === 0) {
+      this.rooms.delete(roomId.toString());
     } else {
-      console.log("no receiving user found");
+      room.sockets = users;
+      this.rooms.set(roomId.toString(), room);
     }
+  }
+
+  sendToOtherUserInRoom({ roomId, senderSocket, message }) {
+    const room = this.rooms.get(roomId.toString());
+
+    console.log(message.type);
+
+    if (!room) {
+      console.log("room not found");
+      return;
+    }
+
+    room.sockets.forEach((socket) => {
+      if (socket !== senderSocket) {
+        socket.send(JSON.stringify(message));
+      }
+    });
   }
 }
