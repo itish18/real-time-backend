@@ -109,6 +109,7 @@ function App() {
   };
 
   const joinRoom = async () => {
+    console.log(room);
     const callDoc = firestore.collection("calls").doc(room);
     const answerCandidates = callDoc.collection("answerCandidates");
     const offerCandidates = callDoc.collection("offerCandidates");
@@ -119,7 +120,7 @@ function App() {
 
     const callData = (await callDoc.get()).data();
 
-    const offerDescription = callData.offer;
+    const offerDescription = callData?.offer;
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
     const answerDescription = await pc.createAnswer();
